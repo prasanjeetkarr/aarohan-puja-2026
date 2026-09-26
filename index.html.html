@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aarohan Pujo Funds 2026</title>
+    
+    <!-- Tailwind CSS for layout and styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PapaParse for reading the CSV data securely from Google links -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        body {
+            background-color: #fff7ed;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        /* Tab switching functionality */
+        .tab-content { display: none; }
+        .tab-content.active { 
+            display: block; 
+            animation: fadeIn 0.3s ease-in-out; 
+        }
+        
+        .tab-btn.active { 
+            border-bottom: 2px solid #ea580c; 
+            color: #ea580c; 
+            font-weight: 600; 
+            background-color: #ffedd5;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Clean table aesthetics */
+        .table-wrapper table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 0.875rem; 
+            background-color: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .table-wrapper th, .table-wrapper td { 
+            padding: 0.75rem 1.25rem; 
+            text-align: left; 
+            border-bottom: 1px solid #e5e7eb; 
+            white-space: nowrap;
+        }
+        .table-wrapper th { 
+            background-color: #fed7aa; 
+            color: #9a3412; 
+            font-weight: 600; 
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .table-wrapper tr:nth-child(even) td { background-color: #fffbeb; }
+        .table-wrapper tr:hover td { background-color: #ffedd5; }
+        
+        /* Scrollbar customization */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #fdba74; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="w-full max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-orange-600 mt-10 md:mt-20 text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-orange-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Aarohan Pujo Funds</h2>
+        <p class="text-gray-500 mb-6 text-sm">Please enter the committee password to view live tracking data.</p>
+        
+        <input type="password" id="pass-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Enter Password">
+        
+        <button onclick="checkPassword()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
+            Access Dashboard
+        </button>
+        
+        <p id="login-error" class="text-red-500 mt-4 text-sm hidden font-medium bg-red-50 py-2 rounded">
+            Incorrect password. Please try again.
+        </p>
+    </div>
+
+    <!-- MAIN DASHBOARD (Hidden by default) -->
+    <div id="main-dashboard" class="w-full max-w-7xl bg-white rounded-xl shadow-xl border-t-4 border-orange-600 overflow-hidden hidden">
+        
+        <!-- Header Section -->
+        <div class="px-6 py-5 border-b border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">Aarohan Pujo Funds 2026</h1>
+                <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                    </span>
+                    <span id="last-updated">Initializing...</span>
+                </p>
+            </div>
+            
+            <button onclick="fetchData()" class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg shadow text-sm font-medium transition-colors duration-200 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Data
+            </button>
+        </div>
+
+        <div class="p-6 min-h-[400px] relative flex flex-col">
+            
+            <!-- Loading State -->
+            <div id="loading-state" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
+                <p class="text-gray-600 font-medium animate-pulse">Syncing directly with Google Sheets...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 hidden">
+                <svg class="h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p class="text-xl font-bold text-gray-800 mb-2">Failed to load data</p>
+                <p id="error-message" class="text-gray-500 text-center max-w-md">Please check your internet connection and sheet links.</p>
+                <button onclick="fetchData()" class="mt-4 px-4 py-2 border border-orange-300 rounded-md text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100">Try Again</button>
+            </div>
+
+            <!-- Dashboard Content (Tabs & Tables) -->
+            <div id="dashboard-content" class="h-full flex flex-col hidden flex-grow">
+                <div class="flex border-b border-gray-200 overflow-x-auto custom-scrollbar" id="tabs-container">
+                    <!-- Tabs generated dynamically via JS -->
+                </div>
+
+                <div id="tables-container" class="mt-4 flex-grow overflow-hidden relative">
+                    <!-- Tables generated dynamically via JS -->
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // --- SECURITY / LOGIN LOGIC ---
+        const COMMITTEE_PASSWORD = "Aarohan2026"; 
+
+        function checkPassword() {
+            const input = document.getElementById('pass-input').value;
+            if (input === COMMITTEE_PASSWORD) {
+                // Hide login, show dashboard
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-dashboard').classList.remove('hidden');
+                
+                // Fetch data immediately upon successful login
+                fetchData(); 
+            } else {
+                // Show error
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        // Allow 'Enter' key submission for convenience
+        document.getElementById("pass-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                checkPassword();
+            }
+        });
+
+        // --- DATA FETCHING & PARSING LOGIC ---
+        // The 5 CSV links based on your provided data
+        const sheetsData = [
+            { id: 'funds', name: 'Funds Raised', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbOMM3nk_W_P9RhFhfkqGFpZHqH3XuH3sy31xNfDOfS4X3PlLNoVUW08clZmjnig/pub?gid=935524605&single=true&output=csv' },
+            { id: 'expenses', name: 'Expenses', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbOMM3nk_W_P9RhFhfkqGFpZHqH3XuH3sy31xNfDOfS4X3PlLNoVUW08clZmjnig/pub?gid=437931726&single=true&output=csv' },
+            { id: 'sponsorships', name: 'Cash Sponsorships', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbOMM3nk_W_P9RhFhfkqGFpZHqH3XuH3sy31xNfDOfS4X3PlLNoVUW08clZmjnig/pub?gid=84807547&single=true&output=csv' },
+            { id: 'anudaan', name: 'Anudaan Donation', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbOMM3nk_W_P9RhFhfkqGFpZHqH3XuH3sy31xNfDOfS4X3PlLNoVUW08clZmjnig/pub?gid=1009579366&single=true&output=csv' },
+            { id: 'stalls', name: 'Stalls', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTbOMM3nk_W_P9RhFhfkqGFpZHqH3XuH3sy31xNfDOfS4X3PlLNoVUW08clZmjnig/pub?gid=976071482&single=true&output=csv' }
+        ];
+
+        // UI DOM Elements
+        const loadingState = document.getElementById('loading-state');
+        const errorState = document.getElementById('error-state');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const tabsContainer = document.getElementById('tabs-container');
+        const tablesContainer = document.getElementById('tables-container');
+        const lastUpdatedText = document.getElementById('last-updated');
+
+        async function fetchData() {
+            // Show loading UI
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+            dashboardContent.classList.add('hidden');
+            
+            lastUpdatedText.innerText = "Fetching...";
+            lastUpdatedText.classList.add('animate-pulse', 'text-orange-600');
+
+            try {
+                // Fetch all 5 CSVs concurrently using PapaParse
+                const parsePromises = sheetsData.map(sheet => {
+                    return new Promise((resolve, reject) => {
+                        Papa.parse(sheet.url, {
+                            download: true,
+                            header: false, // Use array mode to handle the Expenses logic manually
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                resolve({
+                                    id: sheet.id,
+                                    name: sheet.name,
+                                    data: results.data
+                                });
+                            },
+                            error: function(err) {
+                                reject(err);
+                            }
+                        });
+                    });
+                });
+
+                // Wait for all fetches to resolve
+                const results = await Promise.all(parsePromises);
+                
+                // Construct the tables and tabs
+                renderDashboard(results);
+                
+                // Hide loading, show dashboard
+                loadingState.classList.add('hidden');
+                dashboardContent.classList.remove('hidden');
+                
+                // Update Timestamp
+                const now = new Date();
+                const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' };
+                lastUpdatedText.innerText = `As on ${now.toLocaleDateString('en-IN', dateOptions)}`;
+                lastUpdatedText.classList.remove('animate-pulse', 'text-orange-600');
+
+            } catch (error) {
+                console.error("Data Fetch Error:", error);
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+                lastUpdatedText.innerText = "Update failed";
+                lastUpdatedText.classList.remove('animate-pulse');
+            }
+        }
+
+        function renderDashboard(parsedSheets) {
+            tabsContainer.innerHTML = '';
+            tablesContainer.innerHTML = '';
+            
+            let isFirstTab = true;
+
+            parsedSheets.forEach(sheet => {
+                const data = sheet.data;
+                
+                // Create Tab Button
+                const tabBtn = document.createElement('button');
+                tabBtn.className = `tab-btn px-6 py-3 text-sm text-gray-600 whitespace-nowrap focus:outline-none transition-colors duration-200 hover:bg-orange-50 border-b-2 border-transparent ${isFirstTab ? 'active' : ''}`;
+                tabBtn.innerText = sheet.name;
+                tabBtn.onclick = (e) => handleTabClick(e, sheet.id);
+                tabsContainer.appendChild(tabBtn);
+
+                // Create Content Wrapper
+                const contentWrapper = document.createElement('div');
+                contentWrapper.id = `content-${sheet.id}`;
+                contentWrapper.className = `tab-content table-wrapper overflow-x-auto max-h-[60vh] custom-scrollbar ${isFirstTab ? 'active' : ''}`;
+
+                // Handle empty data states
+                if (!data || data.length === 0) {
+                    contentWrapper.innerHTML = `<div class="p-8 text-center text-gray-500 italic">No data found in ${sheet.name}.</div>`;
+                    tablesContainer.appendChild(contentWrapper);
+                    isFirstTab = false;
+                    return;
+                }
+
+                // Prepare Headers and Rows based on custom logic
+                let headers = [];
+                let rows = [];
+
+                if (sheet.id === 'expenses') {
+                    // RULE: Skip the first row (title row) for Expenses
+                    if (data.length > 1) {
+                        headers = data[1];
+                        rows = data.slice(2);
+                    } else {
+                        headers = data[0]; // fallback if only 1 row exists
+                    }
+                } else {
+                    // Standard: First row is headers
+                    headers = data[0];
+                    rows = data.slice(1);
+                }
+
+                // Construct HTML Table String
+                let tableHtml = `<table class="min-w-full"><thead><tr>`;
+                
+                // Add Headers safely
+                headers.forEach(headerText => {
+                    if(headerText !== undefined && headerText !== null) {
+                         tableHtml += `<th>${headerText}</th>`;
+                    }
+                });
+                tableHtml += `</tr></thead><tbody>`;
+                
+                // Add Rows safely
+                rows.forEach(row => {
+                    const isEmptyRow = row.every(cell => !cell || cell.toString().trim() === '');
+                    if (!isEmptyRow) {
+                        tableHtml += `<tr>`;
+                        for (let i = 0; i < headers.length; i++) {
+                            const cellValue = row[i] || '';
+                            tableHtml += `<td>${cellValue}</td>`;
+                        }
+                        tableHtml += `</tr>`;
+                    }
+                });
+                
+                tableHtml += `</tbody></table>`;
+                contentWrapper.innerHTML = tableHtml;
+                tablesContainer.appendChild(contentWrapper);
+                
+                isFirstTab = false;
+            });
+        }
+
+        function handleTabClick(event, targetId) {
+            // Reset active states
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Set newly clicked tab as active
+            event.currentTarget.classList.add('active');
+            document.getElementById(`content-${targetId}`).classList.add('active');
+        }
+    </script>
+</body>
+</html>
